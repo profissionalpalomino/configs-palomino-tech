@@ -172,4 +172,60 @@ Para o Claude conseguir fazer deploy automático, basta que:
 
 ---
 
+## 8. Como o Claude faz automações — API vs Navegador
+
+### O problema com navegador automático
+Outros agentes de IA (como o Gemini) tentam automatizar tarefas abrindo um navegador e clicando nas telas como um humano faria. Isso funciona para muita coisa, mas tem um problema grave: **plataformas como Cloudflare, Google e GitHub detectam robôs** e bloqueiam com captcha imediatamente.
+
+### Como o Claude faz diferente
+O Claude **nunca usa navegador** para tarefas técnicas. Em vez disso, usa conexões diretas de máquina para máquina:
+
+| Tarefa | Como Claude faz | Por que funciona |
+|---|---|---|
+| Deploy no servidor | `ssh` + `scp` via terminal | Conexão técnica legítima com chave SSH |
+| Push no GitHub | `git` CLI com token salvo | Protocolo nativo do git |
+| Criar repos, chamar APIs | REST API com token no header | Chamada de API autenticada |
+| DNS, Cloudflare, etc. | API REST da plataforma | Token de API, sem navegador |
+
+### Como configurar acesso à API de uma nova plataforma
+O padrão é sempre o mesmo:
+1. Gerar um **API Token** no painel da plataforma (seção de configurações/segurança)
+2. Passar o token para o Claude **uma única vez** na conversa
+3. Claude usa o token para fazer chamadas diretas à API — sem precisar entrar no painel nunca mais
+
+### Exemplo real: Cloudflare
+Quando precisar configurar DNS ou outras coisas no Cloudflare via Claude:
+```
+1. Acesse: dash.cloudflare.com → My Profile → API Tokens → Create Token
+2. Use o template "Edit zone DNS" e selecione o domínio profissional.cloud
+3. Copie o token e passe para o Claude
+```
+Claude então faz chamadas diretas à API REST da Cloudflare — sem abrir o painel, sem captcha.
+
+---
+
+## 9. Cloudflare na infraestrutura Palomino Tech
+
+### Por que o Cloudflare aparece se não foi configurado intencionalmente?
+O domínio `profissional.cloud` usa os nameservers da **Cloudflare** (`frida.ns.cloudflare.com` e `cesar.ns.cloudflare.com`). Isso significa que **todo o DNS do domínio é gerenciado pela Cloudflare**, não pela Hostinger.
+
+Isso provavelmente aconteceu quando o domínio foi registrado ou quando alguém configurou o Cloudflare como proxy/CDN em algum momento. A Hostinger ainda é a registradora (quem "possui" o domínio), mas a Cloudflare controla para onde cada subdomínio aponta.
+
+### O que isso significa na prática
+- **Hostinger API** → não consegue adicionar registros DNS para `profissional.cloud` (não tem controle)
+- **Cloudflare API** → consegue adicionar/editar qualquer registro DNS do domínio
+- O site `barbearias.profissionalpalomino.cloud` já funciona porque esse registro já existe no Cloudflare
+
+### Estrutura de DNS atual
+```
+profissional.cloud
+  └── barbearias.profissionalpalomino.cloud → 187.77.57.158  ✅ (já existe)
+  └── palominotech.profissional.cloud       → 187.77.57.158  ⏳ (pendente)
+```
+
+### Para o Claude gerenciar DNS automaticamente no futuro
+Gerar um token da Cloudflare com permissão `Edit zone DNS` para o domínio `profissional.cloud` e guardar aqui neste repo. Com esse token, o Claude adiciona/remove registros DNS sem precisar de acesso ao painel.
+
+---
+
 *Arquivo gerado automaticamente pela sessão de configuração — Palomino Tech*
